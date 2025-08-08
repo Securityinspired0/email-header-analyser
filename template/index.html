@@ -1,0 +1,3154 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email Header Analyser - DKIM, SPF, DMARC</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            /* Light theme variables */
+            --bg-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --bg-secondary: white;
+            --bg-tertiary: #f8f9fa;
+            --text-primary: #333;
+            --text-secondary: #555;
+            --text-white: white;
+            --border-color: #e1e5e9;
+            --shadow: 0 20px 40px rgba(0,0,0,0.1);
+            --card-bg: white;
+            --input-bg: white;
+            --input-border: #e1e5e9;
+            --btn-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --header-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        [data-theme="dark"] {
+            /* Dark theme variables */
+            --bg-primary: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            --bg-secondary: #1e1e2e;
+            --bg-tertiary: #2a2a3e;
+            --text-primary: #ffffff;
+            --text-secondary: #cccccc;
+            --text-white: #ffffff;
+            --border-color: #404040;
+            --shadow: 0 20px 40px rgba(0,0,0,0.3);
+            --card-bg: #1e1e2e;
+            --input-bg: #2a2a3e;
+            --input-border: #404040;
+            --btn-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --header-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg-primary);
+            min-height: 100vh;
+            color: var(--text-primary);
+            transition: background 0.3s ease, color 0.3s ease;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            margin-bottom: 40px;
+            color: var(--text-white);
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .header-text {
+            text-align: left;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: var(--header-shadow);
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .theme-toggle {
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            color: var(--text-white);
+            padding: 12px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.2rem;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .theme-toggle:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: scale(1.1);
+        }
+
+        [data-theme="dark"] .theme-toggle {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        /* Dark mode tooltip icon colors */
+        [data-theme="dark"] .header-tooltip i {
+            color: #cccccc !important;
+        }
+
+        /* Dark mode text improvements */
+        [data-theme="dark"] p {
+            color: var(--text-primary);
+        }
+
+        [data-theme="dark"] .auth-recommendation {
+            background: #1e3a4a;
+            border-left-color: #60a5fa;
+            color: var(--text-primary);
+        }
+
+        [data-theme="dark"] .tooltip-text {
+            background-color: #2a2a3e;
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .main-content {
+            background: var(--bg-secondary);
+            border-radius: 20px;
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+
+        .input-section {
+            padding: 40px;
+            background: var(--bg-tertiary);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 200px;
+            padding: 15px;
+            border: 2px solid var(--input-border);
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            resize: vertical;
+            background: var(--input-bg);
+            color: var(--text-primary);
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .btn {
+            background: var(--btn-gradient);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn:disabled:hover {
+            transform: none;
+            box-shadow: none;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 2px solid var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            background: var(--card-bg);
+            border-color: #667eea;
+            color: var(--text-primary);
+        }
+
+        /* File Upload Styles */
+        .input-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .tab-btn {
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            border: 2px solid var(--border-color);
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .tab-btn.active {
+            background: var(--btn-gradient);
+            color: white;
+            border-color: transparent;
+        }
+
+        .tab-btn:hover:not(.active) {
+            background: var(--card-bg);
+            border-color: #667eea;
+        }
+
+        .tab-content {
+            transition: opacity 0.3s ease;
+        }
+
+        .file-upload-area {
+            border: 2px dashed var(--border-color);
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            transition: all 0.3s ease;
+            background: var(--bg-tertiary);
+            cursor: pointer;
+        }
+
+        .file-upload-area:hover {
+            border-color: #667eea;
+            background: var(--card-bg);
+        }
+
+        .file-upload-area.dragover {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.1);
+        }
+
+        .upload-placeholder {
+            color: var(--text-secondary);
+        }
+
+        .upload-placeholder i {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            color: #667eea;
+        }
+
+        .upload-placeholder p {
+            font-size: 1.1rem;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        .upload-placeholder small {
+            opacity: 0.7;
+        }
+
+        .file-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 15px;
+            background: var(--card-bg);
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+
+        .file-info i {
+            font-size: 1.5rem;
+            color: #667eea;
+        }
+
+        .file-info span {
+            flex: 1;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .remove-file {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background 0.3s ease;
+        }
+
+        .remove-file:hover {
+            background: #c82333;
+        }
+
+        .results-section {
+            padding: 40px;
+            display: none;
+        }
+
+        .security-score {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 30px;
+            border-radius: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .score-circle {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            font-size: 2rem;
+            font-weight: bold;
+        }
+
+        .score-level {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .score-description {
+            opacity: 0.9;
+        }
+
+        .auth-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+        }
+        
+        .advanced-analysis {
+            margin-top: 40px;
+        }
+        
+        .analysis-section {
+            background: var(--card-bg);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            border-left: 5px solid #667eea;
+            transition: background 0.3s ease;
+        }
+        
+        .analysis-section h3 {
+            color: var(--text-primary);
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .geo-locations {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .location-card {
+            background: var(--bg-tertiary);
+            border-radius: 10px;
+            padding: 15px;
+            border-left: 4px solid #28a745;
+            transition: background 0.3s ease;
+        }
+        
+        .location-card.suspicious {
+            border-left-color: #dc3545;
+        }
+        
+        .location-card.valid-domain {
+            border-left-color: #28a745;
+        }
+        
+        .location-card.invalid-domain {
+            border-left-color: #dc3545;
+        }
+        
+        .domain-status {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        
+        .domain-status.valid {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .domain-status.invalid {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        [data-theme="dark"] .domain-status.valid {
+            background: #1e4a2e;
+            color: #4ade80;
+        }
+        
+        [data-theme="dark"] .domain-status.invalid {
+            background: #4a1e1e;
+            color: #f87171;
+        }
+        
+        .reputation-summary {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            transition: background 0.3s ease;
+        }
+        
+        .reputation-stat {
+            text-align: center;
+            flex: 1;
+        }
+        
+        .reputation-section {
+            margin-bottom: 30px;
+        }
+        
+        .reputation-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: background 0.3s ease, border-color 0.3s ease;
+        }
+        
+        .reputation-card.high {
+            border-left: 4px solid #dc3545;
+        }
+        
+        .reputation-card.medium {
+            border-left: 4px solid #ffc107;
+        }
+        
+        .reputation-card.low {
+            border-left: 4px solid #28a745;
+        }
+        
+        .reputation-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+        
+        .reputation-details {
+            font-size: 0.9rem;
+            color: #666;
+        }
+        
+        .reputation-details > div {
+            margin-bottom: 5px;
+        }
+        
+        /* Enhanced Reputation Analysis Styles */
+        .reputation-overview {
+            margin-bottom: 25px;
+        }
+        
+        .overall-status {
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border-left: 5px solid;
+        }
+        
+        .overall-status.critical {
+            background: linear-gradient(135deg, #ffebee, #ffcdd2);
+            border-left-color: #d32f2f;
+            color: #c62828;
+        }
+        
+        .overall-status.high {
+            background: linear-gradient(135deg, #fff3e0, #ffe0b2);
+            border-left-color: #f57c00;
+            color: #ef6c00;
+        }
+        
+        .overall-status.medium {
+            background: linear-gradient(135deg, #fff8e1, #ffecb3);
+            border-left-color: #fbc02d;
+            color: #f57f17;
+        }
+        
+        .overall-status.low {
+            background: linear-gradient(135deg, #e8f5e8, #c8e6c9);
+            border-left-color: #388e3c;
+            color: #2e7d32;
+        }
+        
+        .overall-status.safe {
+            background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+            border-left-color: #1976d2;
+            color: #1565c0;
+        }
+
+        [data-theme="dark"] .overall-status.critical {
+            background: linear-gradient(135deg, #4a1e1e, #3a1e1e);
+            border-left-color: #f87171;
+            color: #f87171;
+        }
+        
+        [data-theme="dark"] .overall-status.high {
+            background: linear-gradient(135deg, #4a3e1e, #3a2e1e);
+            border-left-color: #fbbf24;
+            color: #fbbf24;
+        }
+        
+        [data-theme="dark"] .overall-status.medium {
+            background: linear-gradient(135deg, #4a4a1e, #3a3a1e);
+            border-left-color: #fbbf24;
+            color: #fbbf24;
+        }
+        
+        [data-theme="dark"] .overall-status.low {
+            background: linear-gradient(135deg, #1e4a2e, #1e3a2e);
+            border-left-color: #4ade80;
+            color: #4ade80;
+        }
+        
+        [data-theme="dark"] .overall-status.safe {
+            background: linear-gradient(135deg, #1e3a4a, #1e2a3a);
+            border-left-color: #60a5fa;
+            color: #60a5fa;
+        }
+        
+        .overall-status h4 {
+            margin: 0 0 10px 0;
+            font-size: 1.2rem;
+        }
+        
+        .overall-status p {
+            margin: 0 0 10px 0;
+            font-size: 1rem;
+        }
+        
+        .overall-score {
+            font-size: 1.1rem;
+            font-weight: bold;
+        }
+        
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .summary-stat {
+            text-align: center;
+            padding: 10px;
+            border-radius: 6px;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            transition: background 0.3s ease, border-color 0.3s ease;
+        }
+        
+        .summary-stat.critical {
+            background: #ffebee;
+            border-color: #d32f2f;
+            color: #c62828;
+        }
+        
+        .summary-stat.high {
+            background: #fff3e0;
+            border-color: #f57c00;
+            color: #ef6c00;
+        }
+        
+        .summary-stat.medium {
+            background: #fff8e1;
+            border-color: #fbc02d;
+            color: #f57f17;
+        }
+        
+        .summary-stat.low {
+            background: #e8f5e8;
+            border-color: #388e3c;
+            color: #2e7d32;
+        }
+
+        [data-theme="dark"] .summary-stat.critical {
+            background: #4a1e1e;
+            border-color: #f87171;
+            color: #f87171;
+        }
+        
+        [data-theme="dark"] .summary-stat.high {
+            background: #4a3e1e;
+            border-color: #fbbf24;
+            color: #fbbf24;
+        }
+        
+        [data-theme="dark"] .summary-stat.medium {
+            background: #4a4a1e;
+            border-color: #fbbf24;
+            color: #fbbf24;
+        }
+        
+        [data-theme="dark"] .summary-stat.low {
+            background: #1e4a2e;
+            border-color: #4ade80;
+            color: #4ade80;
+        }
+        
+        .summary-stat.safe {
+            background: #e3f2fd;
+            border-color: #1976d2;
+            color: #1565c0;
+        }
+        
+        .reputation-recommendations {
+            background: var(--bg-tertiary);
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+            border-left: 4px solid #007bff;
+            transition: background 0.3s ease;
+        }
+        
+        .reputation-recommendations h4 {
+            margin: 0 0 15px 0;
+            color: #007bff;
+        }
+
+        [data-theme="dark"] .reputation-recommendations h4 {
+            color: #60a5fa;
+        }
+        
+        .reputation-recommendations ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+        
+        .reputation-recommendations li {
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+        }
+        
+        .risk-category {
+            margin-bottom: 25px;
+        }
+        
+        .risk-category h5 {
+            margin: 0 0 15px 0;
+            padding: 10px 15px;
+            border-radius: 6px;
+            font-size: 1rem;
+        }
+        
+        .risk-category.critical h5 {
+            background: #ffebee;
+            color: #c62828;
+            border-left: 4px solid #d32f2f;
+        }
+        
+        .risk-category.high h5 {
+            background: #fff3e0;
+            color: #ef6c00;
+            border-left: 4px solid #f57c00;
+        }
+        
+        .risk-category.medium h5 {
+            background: #fff8e1;
+            color: #f57f17;
+            border-left: 4px solid #fbc02d;
+        }
+        
+        .risk-category.low h5 {
+            background: #e8f5e8;
+            color: #2e7d32;
+            border-left: 4px solid #388e3c;
+        }
+        
+        .risk-category.safe h5 {
+            background: #e3f2fd;
+            color: #1565c0;
+            border-left: 4px solid #1976d2;
+        }
+
+        [data-theme="dark"] .risk-category.critical h5 {
+            background: #4a1e1e;
+            color: #f87171;
+            border-left: 4px solid #f87171;
+        }
+        
+        [data-theme="dark"] .risk-category.high h5 {
+            background: #4a3e1e;
+            color: #fbbf24;
+            border-left: 4px solid #fbbf24;
+        }
+        
+        [data-theme="dark"] .risk-category.medium h5 {
+            background: #4a4a1e;
+            color: #fbbf24;
+            border-left: 4px solid #fbbf24;
+        }
+        
+        [data-theme="dark"] .risk-category.low h5 {
+            background: #1e4a2e;
+            color: #4ade80;
+            border-left: 4px solid #4ade80;
+        }
+        
+        [data-theme="dark"] .risk-category.safe h5 {
+            background: #1e3a4a;
+            color: #60a5fa;
+            border-left: 4px solid #60a5fa;
+        }
+        
+        .reputation-card.critical {
+            border-left: 4px solid #d32f2f;
+            background: #ffebee;
+        }
+        
+        .reputation-card.high {
+            border-left: 4px solid #f57c00;
+            background: #fff3e0;
+        }
+        
+        .reputation-card.medium {
+            border-left: 4px solid #fbc02d;
+            background: #fff8e1;
+        }
+        
+        .reputation-card.low {
+            border-left: 4px solid #388e3c;
+            background: #e8f5e8;
+        }
+        
+        .reputation-card.safe {
+            border-left: 4px solid #1976d2;
+            background: #e3f2fd;
+        }
+
+        [data-theme="dark"] .reputation-card.critical {
+            border-left: 4px solid #f87171;
+            background: #4a1e1e;
+        }
+        
+        [data-theme="dark"] .reputation-card.high {
+            border-left: 4px solid #fbbf24;
+            background: #4a3e1e;
+        }
+        
+        [data-theme="dark"] .reputation-card.medium {
+            border-left: 4px solid #fbbf24;
+            background: #4a4a1e;
+        }
+        
+        [data-theme="dark"] .reputation-card.low {
+            border-left: 4px solid #4ade80;
+            background: #1e4a2e;
+        }
+        
+        [data-theme="dark"] .reputation-card.safe {
+            border-left: 4px solid #60a5fa;
+            background: #1e3a4a;
+        }
+        
+        .risk-badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        
+        .risk-badge.critical {
+            background: #d32f2f;
+            color: white;
+        }
+        
+        .risk-badge.high {
+            background: #f57c00;
+            color: white;
+        }
+        
+        .risk-badge.medium {
+            background: #fbc02d;
+            color: #333;
+        }
+        
+        .risk-badge.low {
+            background: #388e3c;
+            color: white;
+        }
+        
+        .risk-badge.safe {
+            background: #1976d2;
+            color: white;
+        }
+        
+        .recommendations {
+            margin-top: 15px;
+            padding: 10px;
+            background: rgba(0,0,0,0.05);
+            border-radius: 4px;
+        }
+
+        [data-theme="dark"] .recommendations {
+            background: rgba(255,255,255,0.05);
+        }
+        
+        .recommendations ul {
+            margin: 5px 0 0 0;
+            padding-left: 20px;
+        }
+        
+        .recommendations li {
+            margin-bottom: 5px;
+            font-size: 0.9rem;
+        }
+        
+        .info-message {
+            color: #0c5460;
+            background-color: #d1ecf1;
+            border: 1px solid #bee5eb;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+
+        [data-theme="dark"] .info-message {
+            color: #60a5fa;
+            background-color: #1e3a4a;
+            border: 1px solid #60a5fa;
+        }
+        
+        .flags {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #eee;
+        }
+
+        [data-theme="dark"] .flags {
+            border-top: 1px solid var(--border-color);
+        }
+        
+        .flags ul {
+            margin: 5px 0;
+            padding-left: 20px;
+        }
+        
+        .success-message {
+            color: #28a745;
+            font-weight: 600;
+            padding: 10px;
+            background: #d4edda;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        
+        .warning-message {
+            color: #856404;
+            font-weight: 600;
+            padding: 10px;
+            background: #fff3cd;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        
+        .risk-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+        
+        .risk-high { background: #f8d7da; color: #721c24; }
+        .risk-medium { background: #fff3cd; color: #856404; }
+        .risk-low { background: #d4edda; color: #155724; }
+
+        [data-theme="dark"] .risk-high { background: #4a1e1e; color: #f87171; }
+        [data-theme="dark"] .risk-medium { background: #4a3e1e; color: #fbbf24; }
+        [data-theme="dark"] .risk-low { background: #1e4a2e; color: #4ade80; }
+        
+        .threat-indicators {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .threat-indicators li {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 8px 12px;
+            margin: 5px 0;
+            border-radius: 5px;
+            border-left: 4px solid #dc3545;
+        }
+        
+        .threat-indicators h4 {
+            color: #721c24;
+            margin-bottom: 10px;
+            font-size: 1rem;
+        }
+        
+        .network-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .network-stat {
+            background: var(--bg-tertiary);
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+            border-left: 4px solid #007bff;
+            transition: background 0.3s ease;
+        }
+        
+        .network-timeline {
+            background: var(--bg-tertiary);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 15px 0;
+            transition: background 0.3s ease;
+        }
+        
+        .timeline-container {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .timeline-hop {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 15px;
+            background: var(--card-bg);
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            position: relative;
+            transition: background 0.3s ease;
+        }
+        
+        .timeline-hop.sender {
+            border-left: 4px solid #28a745;
+        }
+        
+        .timeline-hop.relay {
+            border-left: 4px solid #007bff;
+        }
+        
+        .timeline-hop.destination {
+            border-left: 4px solid #6f42c1;
+        }
+        
+        .timeline-hop.untrusted {
+            background: #fff5f5;
+            border-left-color: #dc3545;
+        }
+
+        [data-theme="dark"] .timeline-hop.untrusted {
+            background: #4a1e1e;
+            border-left-color: #f87171;
+        }
+        
+        .hop-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            color: white;
+            flex-shrink: 0;
+        }
+        
+        .timeline-hop.sender .hop-icon {
+            background: #28a745;
+        }
+        
+        .timeline-hop.relay .hop-icon {
+            background: #007bff;
+        }
+        
+        .timeline-hop.destination .hop-icon {
+            background: #6f42c1;
+        }
+        
+        .timeline-hop.untrusted .hop-icon {
+            background: #dc3545;
+        }
+        
+        .hop-content {
+            flex: 1;
+        }
+        
+        .hop-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+        
+        .hop-number {
+            background: #e9ecef;
+            color: #495057;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        [data-theme="dark"] .hop-number {
+            background: #3a3a3a;
+            color: #cccccc;
+        }
+        
+        .hop-type {
+            font-weight: 600;
+            color: #495057;
+        }
+        
+        .trust-badge {
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        
+        .trust-badge.trusted {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .trust-badge.untrusted {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .hop-details {
+            font-size: 0.9rem;
+        }
+        
+        .hop-server {
+            font-family: 'Courier New', monospace;
+            word-break: break-all;
+            margin-bottom: 5px;
+        }
+        
+        .suspicious-reasons {
+            color: #dc3545;
+            font-size: 0.85rem;
+            font-style: italic;
+        }
+        
+        .hop-arrow {
+            color: #6c757d;
+            font-size: 1.2rem;
+            margin: 0 10px;
+        }
+        
+        @media (max-width: 768px) {
+            .timeline-hop {
+                flex-direction: column;
+                text-align: center;
+            }
+            
+            .hop-header {
+                justify-content: center;
+                flex-wrap: wrap;
+            }
+            
+            .hop-arrow {
+                transform: rotate(90deg);
+                margin: 10px 0;
+            }
+        }
+        
+        .recommendations {
+            background: #e7f3ff;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        
+        .recommendations h4 {
+            color: #007bff;
+            margin-bottom: 15px;
+        }
+        
+        .recommendations ul {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .recommendations li {
+            padding: 8px 0;
+            border-bottom: 1px solid #dee2e6;
+        }
+        
+        .recommendations li:last-child {
+            border-bottom: none;
+        }
+
+        .auth-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            border-left: 5px solid #667eea;
+            transition: transform 0.2s ease;
+        }
+
+        .auth-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .auth-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .auth-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 15px;
+            font-size: 1.2rem;
+            color: white;
+        }
+
+        .dkim-icon { background: #28a745; }
+        .spf-icon { background: #007bff; }
+        .dmarc-icon { background: #dc3545; }
+
+        .auth-title {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .auth-status {
+            margin-left: auto;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .status-pass { background: #d4edda; color: #155724; }
+        .status-fail { background: #f8d7da; color: #721c24; }
+        .status-neutral { background: #fff3cd; color: #856404; }
+        .status-not-found { background: #e2e3e5; color: #383d41; }
+        .status-found { background: #d1ecf1; color: #0c5460; }
+
+        [data-theme="dark"] .status-pass { background: #1e4a2e; color: #4ade80; }
+        [data-theme="dark"] .status-fail { background: #4a1e1e; color: #f87171; }
+        [data-theme="dark"] .status-neutral { background: #4a3e1e; color: #fbbf24; }
+        [data-theme="dark"] .status-not-found { background: #3a3a3a; color: #cccccc; }
+        [data-theme="dark"] .status-found { background: #1e3a4a; color: #60a5fa; }
+
+        .auth-details {
+            margin: 15px 0;
+            padding: 15px;
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            word-break: break-all;
+            transition: background 0.3s ease;
+        }
+
+        .auth-explanation {
+            margin: 15px 0;
+            line-height: 1.6;
+            color: var(--text-secondary);
+        }
+
+        .auth-recommendation {
+            margin-top: 15px;
+            padding: 10px 15px;
+            background: #e7f3ff;
+            border-left: 4px solid #007bff;
+            border-radius: 5px;
+            font-style: italic;
+        }
+
+        .auth-insight {
+            margin: 15px 0;
+            padding: 12px 15px;
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            border-radius: 5px;
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+
+        .auth-technical {
+            margin: 15px 0;
+            padding: 12px 15px;
+            background: #f8f9fa;
+            border-left: 4px solid #6c757d;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+
+        .auth-impact {
+            margin: 15px 0;
+            padding: 12px 15px;
+            background: #e8f5e8;
+            border-left: 4px solid #28a745;
+            border-radius: 5px;
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+
+        .auth-issues {
+            margin: 15px 0;
+            padding: 12px 15px;
+            background: #f8d7da;
+            border-left: 4px solid #dc3545;
+            border-radius: 5px;
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+
+        .auth-issues ul {
+            margin: 8px 0 0 0;
+            padding-left: 20px;
+        }
+
+        .auth-issues li {
+            margin-bottom: 5px;
+        }
+
+        .auth-policy {
+            margin: 15px 0;
+            padding: 12px 15px;
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            border-radius: 5px;
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+
+        .auth-policy ul {
+            margin: 8px 0 0 0;
+            padding-left: 20px;
+        }
+
+        .auth-policy li {
+            margin-bottom: 5px;
+        }
+
+        [data-theme="dark"] .auth-insight {
+            background: #4a3e1e;
+            border-left-color: #fbbf24;
+            color: #fbbf24;
+        }
+
+        [data-theme="dark"] .auth-technical {
+            background: #3a3a3a;
+            border-left-color: #cccccc;
+            color: #cccccc;
+        }
+
+        [data-theme="dark"] .auth-impact {
+            background: #1e4a2e;
+            border-left-color: #4ade80;
+            color: #4ade80;
+        }
+
+        [data-theme="dark"] .auth-issues {
+            background: #4a1e1e;
+            border-left-color: #f87171;
+            color: #f87171;
+        }
+
+        [data-theme="dark"] .auth-policy {
+            background: #1e3a4a;
+            border-left-color: #60a5fa;
+            color: #60a5fa;
+        }
+
+        .headers-section {
+            margin: 30px 0;
+        }
+
+        .headers-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .header-item {
+            background: var(--card-bg);
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            word-break: break-all;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            line-height: 1.4;
+            transition: background 0.3s ease;
+        }
+
+        .header-item strong {
+            color: #667eea;
+            display: block;
+            margin-bottom: 5px;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        [data-theme="dark"] .header-item strong {
+            color: #60a5fa;
+        }
+
+        .header-item:not(:has(strong:contains("Not Found"))) {
+            background: var(--bg-tertiary);
+        }
+
+        .header-tooltip {
+            position: relative;
+            cursor: help;
+            display: inline-flex;
+            align-items: center;
+        }
+
+        .header-tooltip .tooltip-text {
+            visibility: hidden;
+            width: 300px;
+            background-color: #333;
+            color: white;
+            text-align: center;
+            border-radius: 6px;
+            padding: 10px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -150px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 0.85rem;
+            line-height: 1.4;
+            font-weight: normal;
+        }
+
+        .header-tooltip:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        .header-tooltip .tooltip-text::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: #333 transparent transparent transparent;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #dc3545;
+        }
+
+        .sample-headers {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+
+        .sample-headers h3 {
+            margin-bottom: 15px;
+            color: #555;
+        }
+
+        .sample-btn {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 0.9rem;
+        }
+
+        .sample-btn:hover {
+            background: #5a6268;
+        }
+
+        .warnings-section {
+            margin: 20px 0;
+        }
+
+        .warnings-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .warning-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            border-left: 4px solid #dc3545;
+            transition: transform 0.2s ease;
+        }
+
+        .warning-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .warning-card.high {
+            border-left-color: #dc3545;
+            background: #fff5f5;
+        }
+
+        .warning-card.medium {
+            border-left-color: #ffc107;
+            background: #fffbf0;
+        }
+
+        .warning-card.low {
+            border-left-color: #17a2b8;
+            background: #f8f9fa;
+        }
+
+        .warning-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+
+        .warning-icon {
+            font-size: 1.5rem;
+            margin-right: 10px;
+        }
+
+        .warning-severity {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .warning-severity.high {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .warning-severity.medium {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .warning-severity.low {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .warning-message {
+            font-weight: 600;
+            font-size: 1.1rem;
+            margin-bottom: 8px;
+            color: #333;
+        }
+
+        .warning-details {
+            font-size: 0.9rem;
+            color: #666;
+            font-style: italic;
+        }
+
+        .warnings-summary {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+            justify-content: center;
+        }
+
+        .warning-stat {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .warning-stat.high {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .warning-stat.medium {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .warning-stat.low {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        /* Compliance & Forensics Section - Now part of unified section */
+
+        .compliance-issues h4,
+        .forensic-analysis h4 {
+            color: #333;
+            margin: 20px 0 15px 0;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .compliance-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .compliance-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            border-left: 4px solid #dc3545;
+            transition: transform 0.2s ease;
+        }
+
+        .compliance-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .compliance-card.high {
+            border-left-color: #dc3545;
+            background: #fff5f5;
+        }
+
+        .compliance-card.medium {
+            border-left-color: #ffc107;
+            background: #fffbf0;
+        }
+
+        .compliance-card.low {
+            border-left-color: #17a2b8;
+            background: #f8f9fa;
+        }
+
+        .compliance-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+
+        .compliance-type {
+            font-weight: 600;
+            color: #333;
+            font-size: 0.9rem;
+        }
+
+        .compliance-severity {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .compliance-severity.high {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .compliance-severity.medium {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .compliance-severity.low {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .compliance-message {
+            font-weight: 600;
+            font-size: 1.1rem;
+            margin-bottom: 8px;
+            color: #333;
+        }
+
+        .compliance-details {
+            font-size: 0.9rem;
+            color: #666;
+            font-style: italic;
+        }
+
+        .compliance-summary {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+            justify-content: center;
+        }
+
+        .compliance-stat {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .compliance-stat.gdpr {
+            background: #e3f2fd;
+            color: #1565c0;
+        }
+
+        .compliance-stat.ncsc {
+            background: #fff3e0;
+            color: #ef6c00;
+        }
+
+        .compliance-stat.spam {
+            background: #f3e5f5;
+            color: #7b1fa2;
+        }
+
+        .no-issues {
+            text-align: center;
+            color: #28a745;
+            font-weight: 600;
+            font-size: 1.1rem;
+            padding: 20px;
+            background: #d4edda;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+
+        /* Forensic Analysis */
+        .forensic-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .forensic-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: flex-start;
+            gap: 15px;
+            transition: transform 0.2s ease;
+        }
+
+        .forensic-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .forensic-card.positive {
+            border-left: 4px solid #28a745;
+            background: #f8fff8;
+        }
+
+        .forensic-card.warning {
+            border-left: 4px solid #ffc107;
+            background: #fffbf0;
+        }
+
+        .forensic-icon {
+            font-size: 1.5rem;
+            margin-top: 2px;
+        }
+
+        .forensic-card.positive .forensic-icon {
+            color: #28a745;
+        }
+
+        .forensic-card.warning .forensic-icon {
+            color: #ffc107;
+        }
+
+        .forensic-content {
+            flex: 1;
+        }
+
+        .forensic-message {
+            font-weight: 600;
+            font-size: 1.1rem;
+            margin-bottom: 8px;
+            color: #333;
+        }
+
+        .forensic-details {
+            font-size: 0.9rem;
+            color: #666;
+            font-style: italic;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .input-section, .results-section {
+                padding: 20px;
+            }
+            
+            .auth-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .warnings-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .warnings-summary {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .compliance-grid,
+            .forensic-grid {
+                grid-template-columns: 1fr;
+            }
+
+                    .compliance-summary {
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* Responsive design for unified security section */
+        @media (max-width: 768px) {
+            .security-compliance-section {
+                padding: 15px;
+                margin: 15px 0;
+            }
+            
+            .security-compliance-section h3 {
+                font-size: 1.3rem;
+                margin-bottom: 20px;
+            }
+            
+            .security-warnings,
+            .compliance-issues,
+            .forensic-analysis {
+                margin-bottom: 12px;
+            }
+            
+            .security-warnings h4,
+            .compliance-issues h4,
+            .forensic-analysis h4 {
+                padding: 10px 12px;
+                font-size: 1rem;
+            }
+            
+            .unified-content {
+                gap: 0;
+            }
+        }
+        }
+
+        /* Unified Security & Compliance Section */
+        .security-compliance-section {
+            margin: 20px 0;
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 25px;
+            border: 2px solid #e9ecef;
+        }
+
+        .security-compliance-section h3 {
+            color: #333;
+            margin-bottom: 25px;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #dee2e6;
+        }
+
+        .security-warnings,
+        .compliance-issues,
+        .forensic-analysis {
+            margin-bottom: 15px;
+            padding: 0;
+            background: transparent;
+            border-radius: 0;
+            border: none;
+        }
+
+        .security-warnings:last-child,
+        .compliance-issues:last-child,
+        .forensic-analysis:last-child {
+            margin-bottom: 0;
+        }
+
+        .security-warnings h4,
+        .compliance-issues h4,
+        .forensic-analysis h4 {
+            color: #333;
+            margin: 0 0 15px 0;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #e9ecef;
+            background: white;
+            padding: 12px 15px;
+            border-radius: 8px 8px 0 0;
+            margin-bottom: 0;
+        }
+
+        .unified-content {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+        }
+
+        /* Make content within sections flow better */
+        .security-warnings .warnings-grid,
+        .compliance-issues .compliance-grid,
+        .forensic-analysis .forensic-grid {
+            background: white;
+            padding: 15px;
+            border-radius: 0 0 8px 8px;
+            border: 1px solid #e9ecef;
+            border-top: none;
+        }
+
+        .security-warnings .warnings-summary,
+        .compliance-issues .compliance-summary {
+            background: #f8f9fa;
+            padding: 10px 15px;
+            border-radius: 0 0 8px 8px;
+            border: 1px solid #e9ecef;
+            border-top: none;
+            margin-top: 0;
+        }
+
+        .warnings-section {
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="header-content">
+                <div class="header-text">
+                                    <h1><i class="fas fa-envelope-open-text"></i> Email Header Analyser</h1>
+                <p>Analyse DKIM, SPF, and DMARC authentication in email headers</p>
+                </div>
+                <button id="themeToggle" class="theme-toggle" title="Toggle Dark Mode">
+                    <i class="fas fa-moon"></i>
+                </button>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="input-section">
+                <div class="input-tabs">
+                    <button class="tab-btn active" onclick="switchTab('text')">
+                        <i class="fas fa-code"></i> Paste Headers
+                    </button>
+                    <button class="tab-btn" onclick="switchTab('file')">
+                        <i class="fas fa-file-upload"></i> Upload .eml File
+                    </button>
+                </div>
+
+                <div class="tab-content" id="textTab">
+                    <form id="analyzeForm">
+                        <div class="form-group">
+                            <label for="headers">
+                                <i class="fas fa-code"></i> Email Headers
+                            </label>
+                            <textarea id="headers" name="headers" placeholder="Paste your email headers here...&#10;&#10;Example:&#10;DKIM-Signature: v=1; a=rsa-sha256; d=example.com; s=selector;...&#10;Received-SPF: pass (google.com: domain of sender@example.com designates 192.168.1.1 as permitted sender)&#10;Authentication-Results: mx.google.com; dmarc=pass header.from=example.com;..."></textarea>
+                        </div>
+                        
+                        <div class="button-group">
+                            <button type="submit" class="btn">
+                                <i class="fas fa-search"></i> Analyse Headers
+                            </button>
+                            <button type="button" class="btn btn-secondary" id="downloadPdfBtn" style="display: none;">
+                                <i class="fas fa-file-pdf"></i> Download PDF Report
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="tab-content" id="fileTab" style="display: none;">
+                    <form id="uploadForm" enctype="multipart/form-data">
+                        <div class="form-group">
+                            <label for="emlFile">
+                                <i class="fas fa-file-upload"></i> Upload .eml File
+                            </label>
+                            <div class="file-upload-area" id="fileUploadArea">
+                                <input type="file" id="emlFile" name="file" accept=".eml" style="display: none;">
+                                <div class="upload-placeholder">
+                                    <i class="fas fa-cloud-upload-alt"></i>
+                                    <p>Click to select or drag and drop a .eml file</p>
+                                    <small>Maximum file size: 16MB</small>
+                                </div>
+                                <div class="file-info" id="fileInfo" style="display: none;">
+                                    <i class="fas fa-file-alt"></i>
+                                    <span id="fileName"></span>
+                                    <button type="button" class="remove-file" onclick="removeFile()">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="button-group">
+                            <button type="submit" class="btn" id="uploadBtn" disabled>
+                                <i class="fas fa-search"></i> Analyse .eml File
+                            </button>
+                            <button type="button" class="btn btn-secondary" id="downloadPdfBtnFile" style="display: none;">
+                                <i class="fas fa-file-pdf"></i> Download PDF Report
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="sample-headers">
+                    <h3><i class="fas fa-lightbulb"></i> Sample Headers</h3>
+                    <button class="sample-btn" onclick="loadSample('good')">Good Authentication</button>
+                    <button class="sample-btn" onclick="loadSample('poor')">Poor Authentication</button>
+                    <button class="sample-btn" onclick="loadSample('none')">No Authentication</button>
+                    <button class="sample-btn" onclick="loadSample('spoofed')" style="background: #dc3545;">Spoofed Email</button>
+                    <button class="sample-btn" onclick="loadSample('security')" style="background: #17a2b8;">Security & Compliance Test</button>
+                </div>
+            </div>
+
+            <div class="loading">
+                <div class="spinner"></div>
+                <p>Analysing email headers...</p>
+            </div>
+
+            <div class="results-section" id="resultsSection">
+                <div class="security-score" id="securityScore">
+                    <!-- Security score will be populated here -->
+                </div>
+
+                <div class="auth-grid" id="authGrid">
+                    <!-- Authentication results will be populated here -->
+                </div>
+                
+                <div class="headers-section" id="headersSection">
+                    <!-- Headers found will be populated here -->
+                </div>
+                
+                <div class="advanced-analysis" id="advancedAnalysis">
+                    <!-- Advanced analysis results will be populated here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const sampleHeaders = {
+            good: `DKIM-Signature: v=1; a=rsa-sha256; d=example.com; s=selector; c=relaxed/relaxed; t=1234567890; bh=abc123; h=from:to:subject:date; b=xyz789
+Received-SPF: pass (google.com: domain of sender@example.com designates 192.168.1.1 as permitted sender) client-ip=192.168.1.1;
+Authentication-Results: mx.google.com; dmarc=pass header.from=example.com; spf=pass (google.com: domain of sender@example.com designates 192.168.1.1 as permitted sender) smtp.mailfrom=sender@example.com; dkim=pass header.i=@example.com;
+Received: from mail-server.example.com (192.168.1.1) by mx.google.com with SMTP;
+From: sender@example.com
+To: recipient@example.com
+Subject: Test Email
+Date: Mon, 01 Jan 2024 12:00:00 +0000
+Message-ID: <test123@example.com>
+Return-Path: <sender@example.com>`,
+            
+            poor: `Received-SPF: neutral (google.com: 192.168.1.1 is neither permitted nor denied by domain of sender@example.com) client-ip=192.168.1.1;
+Authentication-Results: mx.google.com; dmarc=neutral header.from=example.com; spf=neutral (google.com: 192.168.1.1 is neither permitted nor denied by domain of sender@example.com) smtp.mailfrom=sender@example.com;
+Received: from unknown-server.com (203.0.113.1) by mx.google.com with SMTP;
+From: sender@example.com
+To: recipient@example.com
+Subject: Test Email
+Date: Mon, 01 Jan 2024 12:00:00 +0000`,
+            
+            none: `From: sender@example.com
+To: recipient@example.com
+Subject: Test Email
+Date: Mon, 01 Jan 2024 12:00:00 +0000`,
+            
+            spoofed: `From: "CEO" <ceo@microsoft.com>
+To: <employee@company.com>
+Subject: URGENT: Account Suspended - Immediate Action Required
+Date: Mon, 01 Jan 2024 12:00:00 +0000
+Message-ID: <urgent123@microsoft.com>
+Return-Path: <spammer@malicious-domain.com>
+DKIM-Signature: v=1; a=rsa-sha256; d=microsoft.com; s=selector; c=relaxed/relaxed; t=1705310400; h=from:to:subject:date; bh=abc123; b=def456
+Received-SPF: fail (google.com: domain of ceo@microsoft.com does not designate 192.168.1.1 as permitted sender) client-ip=192.168.1.1;
+Authentication-Results: spf=fail smtp.mailfrom=ceo@microsoft.com; dkim=fail header.d=microsoft.com; dmarc=fail header.from=microsoft.com
+Received: from localhost (localhost [127.0.0.1]) by mx.google.com with SMTP;
+Received: from unknown-server (0.0.0.0) by localhost with SMTP;`,
+            
+            security: `From: "Security Test" <sender@example.com>
+To: "Test Recipient" <recipient@test.com>
+Subject: Test Email with Multiple Security Issues
+Date: Mon, 01 Jan 2024 12:00:00 +0000
+Message-ID: <test123@example.com>
+Return-Path: <bounce@different-domain.com>
+Received: from localhost (localhost [127.0.0.1]) by mail.example.com (Postfix) with SMTP id ABC123; Mon, 01 Jan 2024 12:00:00 +0000
+Received: from unknown (unknown [192.168.1.1]) by mail.example.com (Postfix) with SMTP id DEF456; Mon, 01 Jan 2024 12:00:00 +0000
+Authentication-Results: mail.example.com; dkim=fail reason="signature verification failed"; spf=fail smtp.mailfrom=bounce@different-domain.com; dmarc=fail (p=REJECT sp=REJECT dis=NONE) header.from=example.com
+DKIM-Signature: v=1; a=rsa-sha256; d=example.com; s=selector; c=relaxed/relaxed; q=dns/txt; t=1640995200; h=from:to:subject:date; bh=abc123; b=def456
+Received-SPF: fail (mail.example.com: domain of bounce@different-domain.com does not designate 192.168.1.1 as permitted sender) client-ip=192.168.1.1;`
+        };
+
+        // Theme toggle functionality
+        function initTheme() {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+            updateThemeIcon(savedTheme);
+        }
+
+        function toggleTheme() {
+            const currentTheme = document.documentElement.getAttribute('data-theme');
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+            
+            document.documentElement.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            updateThemeIcon(newTheme);
+        }
+
+        function updateThemeIcon(theme) {
+            const themeToggle = document.getElementById('themeToggle');
+            const icon = themeToggle.querySelector('i');
+            
+            if (theme === 'dark') {
+                icon.className = 'fas fa-sun';
+                themeToggle.title = 'Switch to Light Mode';
+            } else {
+                icon.className = 'fas fa-moon';
+                themeToggle.title = 'Switch to Dark Mode';
+            }
+        }
+
+        // Initialize theme on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            initTheme();
+            
+            // Add event listener to theme toggle button
+            document.getElementById('themeToggle').addEventListener('click', toggleTheme);
+        });
+
+        function loadSample(type) {
+            document.getElementById('headers').value = sampleHeaders[type];
+        }
+
+        document.getElementById('analyzeForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const headers = document.getElementById('headers').value.trim();
+            if (!headers) {
+                alert('Please enter email headers to analyse.');
+                return;
+            }
+
+            // Show loading
+            document.querySelector('.loading').style.display = 'block';
+            document.getElementById('resultsSection').style.display = 'none';
+
+            try {
+                const response = await fetch('/analyze', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `headers=${encodeURIComponent(headers)}`
+                });
+
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                displayResults(data);
+            } catch (error) {
+                document.querySelector('.loading').style.display = 'none';
+                document.getElementById('resultsSection').innerHTML = `
+                    <div class="error">
+                        <i class="fas fa-exclamation-triangle"></i> Error: ${error.message}
+                    </div>
+                `;
+                document.getElementById('resultsSection').style.display = 'block';
+            }
+        });
+
+        function displayResults(data) {
+            const resultsSection = document.getElementById('resultsSection');
+            const securityScore = document.getElementById('securityScore');
+            const authGrid = document.getElementById('authGrid');
+            const advancedAnalysis = document.getElementById('advancedAnalysis');
+
+            // Display security score
+            const score = data.summary.overall_score;
+            const riskAssessment = data.summary.risk_assessment;
+            securityScore.innerHTML = `
+                <div class="score-circle">${score.percentage}%</div>
+                <div class="score-level">${score.level} Security</div>
+                <div class="score-description">Score: ${score.score}/${score.max_score} (${score.percentage}%)</div>
+                <div class="risk-badge risk-${riskAssessment.risk_level.toLowerCase()}">Risk: ${riskAssessment.risk_level}</div>
+            `;
+
+            // Display unified Security & Compliance Analysis
+            const securityComplianceSection = document.createElement('div');
+            securityComplianceSection.className = 'security-compliance-section';
+            
+            let securityContent = '';
+            let complianceContent = '';
+            let forensicContent = '';
+            
+            // Security Warnings
+            if (data.mismatch_analysis && data.mismatch_analysis.warnings.length > 0) {
+                securityContent = `
+                    <div class="security-warnings">
+                        <h4><i class="fas fa-exclamation-triangle"></i> Security Warnings (${data.mismatch_analysis.total_warnings})</h4>
+                        <div class="warnings-grid">
+                            ${data.mismatch_analysis.warnings.map(warning => `
+                                <div class="warning-card ${warning.severity}">
+                                    <div class="warning-header">
+                                        <span class="warning-icon">${warning.icon}</span>
+                                        <span class="warning-severity ${warning.severity}">${warning.severity.toUpperCase()}</span>
+                                    </div>
+                                    <div class="warning-message">${warning.message}</div>
+                                    <div class="warning-details">${warning.details}</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <div class="warnings-summary">
+                            <div class="warning-stat high">High: ${data.mismatch_analysis.high_severity}</div>
+                            <div class="warning-stat medium">Medium: ${data.mismatch_analysis.medium_severity}</div>
+                            <div class="warning-stat low">Low: ${data.mismatch_analysis.low_severity}</div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // Compliance Issues
+            if (data.compliance_and_forensics && data.compliance_and_forensics.compliance_issues.length > 0) {
+                complianceContent = `
+                    <div class="compliance-issues">
+                        <h4><i class="fas fa-gavel"></i> Compliance Issues (${data.compliance_and_forensics.total_compliance_issues})</h4>
+                        <div class="compliance-grid">
+                            ${data.compliance_and_forensics.compliance_issues.map(issue => `
+                                <div class="compliance-card ${issue.severity}">
+                                    <div class="compliance-header">
+                                        <span class="compliance-type">${issue.type}</span>
+                                        <span class="compliance-severity ${issue.severity}">${issue.severity.toUpperCase()}</span>
+                                    </div>
+                                    <div class="compliance-message">${issue.message}</div>
+                                    <div class="compliance-details">${issue.details}</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <div class="compliance-summary">
+                            <div class="compliance-stat gdpr">GDPR: ${data.compliance_and_forensics.gdpr_violations}</div>
+                            <div class="compliance-stat ncsc">NCSC: ${data.compliance_and_forensics.ncsc_violations}</div>
+                            <div class="compliance-stat spam">Anti-spam: ${data.compliance_and_forensics.spam_violations}</div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // Forensic Analysis
+            if (data.compliance_and_forensics && data.compliance_and_forensics.forensic_notes.length > 0) {
+                forensicContent = `
+                    <div class="forensic-analysis">
+                        <h4><i class="fas fa-search"></i> Forensic Analysis (Score: ${data.compliance_and_forensics.forensic_score}%)</h4>
+                        <div class="forensic-grid">
+                            ${data.compliance_and_forensics.forensic_notes.map(note => `
+                                <div class="forensic-card ${note.type}">
+                                    <div class="forensic-icon">
+                                        <i class="fas fa-${note.type === 'positive' ? 'check-circle' : 'exclamation-triangle'}"></i>
+                                    </div>
+                                    <div class="forensic-content">
+                                        <div class="forensic-message">${note.message}</div>
+                                        <div class="forensic-details">${note.details}</div>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // Only create section if there's content to show
+            if (securityContent || complianceContent || forensicContent) {
+                securityComplianceSection.innerHTML = `
+                    <h3><i class="fas fa-shield-alt"></i> Security & Compliance Analysis</h3>
+                    <div class="unified-content">
+                        ${securityContent}
+                        ${complianceContent}
+                        ${forensicContent}
+                    </div>
+                `;
+                resultsSection.insertBefore(securityComplianceSection, authGrid);
+            }
+
+            // Display authentication results
+            authGrid.innerHTML = `
+                <div class="auth-card">
+                    <div class="auth-header">
+                        <div class="auth-icon dkim-icon">
+                            <i class="fas fa-key"></i>
+                        </div>
+                        <div class="auth-title">DKIM</div>
+                        <div class="auth-status status-${data.dkim.status.toLowerCase().replace(' ', '-')}">${data.dkim.status}</div>
+                    </div>
+                    <div class="auth-details">${data.dkim.details}</div>
+                    <div class="auth-explanation">${data.dkim.explanation}</div>
+                    ${data.dkim.insight ? `<div class="auth-insight">
+                        <i class="fas fa-eye"></i> <strong>Insight:</strong> ${data.dkim.insight}
+                    </div>` : ''}
+                    ${data.dkim.technical_details ? `<div class="auth-technical">
+                        <i class="fas fa-cogs"></i> <strong>Technical Details:</strong> ${data.dkim.technical_details}
+                    </div>` : ''}
+                    ${data.dkim.impact ? `<div class="auth-impact">
+                        <i class="fas fa-chart-line"></i> <strong>Impact:</strong> ${data.dkim.impact}
+                    </div>` : ''}
+                    ${data.dkim.issues && data.dkim.issues.length > 0 ? `<div class="auth-issues">
+                        <i class="fas fa-exclamation-triangle"></i> <strong>Issues Found:</strong>
+                        <ul>${data.dkim.issues.map(issue => `<li>${issue}</li>`).join('')}</ul>
+                    </div>` : ''}
+                    <div class="auth-recommendation">
+                        <i class="fas fa-lightbulb"></i> <strong>Recommendation:</strong> ${data.dkim.recommendation}
+                    </div>
+                </div>
+
+                <div class="auth-card">
+                    <div class="auth-header">
+                        <div class="auth-icon spf-icon">
+                            <i class="fas fa-shield-alt"></i>
+                        </div>
+                        <div class="auth-title">SPF</div>
+                        <div class="auth-status status-${data.spf.status.toLowerCase()}">${data.spf.status}</div>
+                    </div>
+                    <div class="auth-details">${data.spf.details}</div>
+                    <div class="auth-explanation">${data.spf.explanation}</div>
+                    ${data.spf.insight ? `<div class="auth-insight">
+                        <i class="fas fa-eye"></i> <strong>Insight:</strong> ${data.spf.insight}
+                    </div>` : ''}
+                    ${data.spf.technical_details ? `<div class="auth-technical">
+                        <i class="fas fa-cogs"></i> <strong>Technical Details:</strong> ${data.spf.technical_details}
+                    </div>` : ''}
+                    ${data.spf.impact ? `<div class="auth-impact">
+                        <i class="fas fa-chart-line"></i> <strong>Impact:</strong> ${data.spf.impact}
+                    </div>` : ''}
+                    <div class="auth-recommendation">
+                        <i class="fas fa-lightbulb"></i> <strong>Recommendation:</strong> ${data.spf.recommendation}
+                    </div>
+                </div>
+
+                <div class="auth-card">
+                    <div class="auth-header">
+                        <div class="auth-icon dmarc-icon">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div class="auth-title">DMARC</div>
+                        <div class="auth-status status-${data.dmarc.status.toLowerCase()}">${data.dmarc.status}</div>
+                    </div>
+                    <div class="auth-details">${data.dmarc.details}</div>
+                    <div class="auth-explanation">${data.dmarc.explanation}</div>
+                    ${data.dmarc.insight ? `<div class="auth-insight">
+                        <i class="fas fa-eye"></i> <strong>Insight:</strong> ${data.dmarc.insight}
+                    </div>` : ''}
+                    ${data.dmarc.technical_details ? `<div class="auth-technical">
+                        <i class="fas fa-cogs"></i> <strong>Technical Details:</strong> ${data.dmarc.technical_details}
+                    </div>` : ''}
+                    ${data.dmarc.impact ? `<div class="auth-impact">
+                        <i class="fas fa-chart-line"></i> <strong>Impact:</strong> ${data.dmarc.impact}
+                    </div>` : ''}
+                    ${data.dmarc.policy_info && Object.keys(data.dmarc.policy_info).length > 0 ? `<div class="auth-policy">
+                        <i class="fas fa-policy"></i> <strong>Policy Information:</strong>
+                        <ul>${Object.entries(data.dmarc.policy_info).map(([key, value]) => `<li><strong>${key}:</strong> ${value}</li>`).join('')}</ul>
+                    </div>` : ''}
+                    <div class="auth-recommendation">
+                        <i class="fas fa-lightbulb"></i> <strong>Recommendation:</strong> ${data.dmarc.recommendation}
+                    </div>
+                </div>
+            `;
+
+            // Display extracted headers
+            const headersSection = document.getElementById('headersSection');
+            headersSection.innerHTML = `
+                <div class="analysis-section">
+                    <h3><i class="fas fa-list"></i> Headers Found</h3>
+                    <div class="headers-grid">
+                        <div class="header-item">
+                            <strong class="header-tooltip">
+                                From Name
+                                <i class="fas fa-info-circle" style="font-size: 0.8rem; color: #999; margin-left: 5px;"></i>
+                                <span class="tooltip-text">The display name of the sender that appears in the email client</span>
+                            </strong>
+                            ${data.headers_found.from_name || 'Not specified'}
+                        </div>
+                        <div class="header-item">
+                            <strong class="header-tooltip">
+                                From Email
+                                <i class="fas fa-info-circle" style="font-size: 0.8rem; color: #999; margin-left: 5px;"></i>
+                                <span class="tooltip-text">The actual email address used to send the message</span>
+                            </strong>
+                            ${data.headers_found.from_email}
+                        </div>
+                        <div class="header-item">
+                            <strong class="header-tooltip">
+                                To
+                                <i class="fas fa-info-circle" style="font-size: 0.8rem; color: #999; margin-left: 5px;"></i>
+                                <span class="tooltip-text">The recipient(s) of the email - can be one or multiple addresses</span>
+                            </strong>
+                            ${data.headers_found.to}
+                        </div>
+                        <div class="header-item">
+                            <strong class="header-tooltip">
+                                Subject
+                                <i class="fas fa-info-circle" style="font-size: 0.8rem; color: #999; margin-left: 5px;"></i>
+                                <span class="tooltip-text">The subject line that appears in the email client inbox</span>
+                            </strong>
+                            ${data.headers_found.subject}
+                        </div>
+                        <div class="header-item">
+                            <strong class="header-tooltip">
+                                Date
+                                <i class="fas fa-info-circle" style="font-size: 0.8rem; color: #999; margin-left: 5px;"></i>
+                                <span class="tooltip-text">When the email was sent - helps verify timing and detect delays</span>
+                            </strong>
+                            ${data.headers_found.date}
+                        </div>
+                        <div class="header-item">
+                            <strong class="header-tooltip">
+                                Message-ID
+                                <i class="fas fa-info-circle" style="font-size: 0.8rem; color: #999; margin-left: 5px;"></i>
+                                <span class="tooltip-text">A unique identifier for this email - each email should have a unique Message-ID</span>
+                            </strong>
+                            ${data.headers_found.message_id}
+                        </div>
+                        <div class="header-item">
+                            <strong class="header-tooltip">
+                                Return-Path
+                                <i class="fas fa-info-circle" style="font-size: 0.8rem; color: #999; margin-left: 5px;"></i>
+                                <span class="tooltip-text">The email address where bounces and delivery failures should be sent - usually same as From address</span>
+                            </strong>
+                            ${data.headers_found.return_path}
+                        </div>
+                        <div class="header-item">
+                            <strong class="header-tooltip">
+                                Reply-To
+                                <i class="fas fa-info-circle" style="font-size: 0.8rem; color: #999; margin-left: 5px;"></i>
+                                <span class="tooltip-text">The email address where replies should be sent - may be different from From address</span>
+                            </strong>
+                            ${data.headers_found.reply_to}
+                        </div>
+                        <div class="header-item">
+                            <strong class="header-tooltip">
+                                DKIM-Signature
+                                <i class="fas fa-info-circle" style="font-size: 0.8rem; color: #999; margin-left: 5px;"></i>
+                                <span class="tooltip-text">Digital signature that proves the email was sent by the claimed domain and wasn't modified in transit</span>
+                            </strong>
+                            ${data.headers_found.dkim_signature}
+                        </div>
+                        <div class="header-item">
+                            <strong class="header-tooltip">
+                                Received-SPF
+                                <i class="fas fa-info-circle" style="font-size: 0.8rem; color: #999; margin-left: 5px;"></i>
+                                <span class="tooltip-text">SPF (Sender Policy Framework) result showing whether the sending IP is authorized by the domain</span>
+                            </strong>
+                            ${data.headers_found.received_spf}
+                        </div>
+                        <div class="header-item">
+                            <strong class="header-tooltip">
+                                Authentication-Results
+                                <i class="fas fa-info-circle" style="font-size: 0.8rem; color: #999; margin-left: 5px;"></i>
+                                <span class="tooltip-text">Combined results of all authentication checks (SPF, DKIM, DMARC) performed by the receiving server</span>
+                            </strong>
+                            ${data.headers_found.authentication_results}
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Display advanced analysis
+            advancedAnalysis.innerHTML = `
+                <div class="analysis-section">
+                    <h3><i class="fas fa-globe"></i> Geolocation Analysis</h3>
+                    <p><strong>IPs Found:</strong> ${data.geolocation.ips_found}</p>
+                    <p><strong>Risk Level:</strong> <span class="risk-badge risk-${data.geolocation.analysis.risk_level.toLowerCase()}">${data.geolocation.analysis.risk_level}</span></p>
+                    <p>${data.geolocation.analysis.details}</p>
+                    
+                    <div class="geo-locations">
+                        ${data.geolocation.locations.map(location => `
+                            <div class="location-card ${location.risk_factors.length > 0 ? 'suspicious' : ''}">
+                                <strong>IP:</strong> ${location.ip}<br>
+                                <strong>Type:</strong> ${location.type}<br>
+                                <strong>Location:</strong> ${location.location}<br>
+                                <strong>City:</strong> ${location.city || 'Unknown'}<br>
+                                <strong>Region/State:</strong> ${location.region || 'Unknown'}<br>
+                                <strong>Country:</strong> ${location.country}<br>
+                                <strong>ISP:</strong> ${location.isp}
+                                ${location.risk_factors.length > 0 ? `<br><strong>Risk Factors:</strong> ${location.risk_factors.join(', ')}` : ''}
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+
+                <div class="analysis-section">
+                    <h3><i class="fas fa-exclamation-triangle"></i> Threat Intelligence</h3>
+                    <p><strong>Risk Level:</strong> <span class="risk-badge risk-${data.threat_intelligence.risk_level.toLowerCase()}">${data.threat_intelligence.risk_level}</span></p>
+                    <p>${data.threat_intelligence.details}</p>
+                    
+                    ${data.threat_intelligence.threat_indicators.length > 0 ? `
+                        <ul class="threat-indicators">
+                            ${data.threat_intelligence.threat_indicators.map(indicator => `<li>${indicator}</li>`).join('')}
+                        </ul>
+                    ` : '<p><i class="fas fa-info-circle"></i> No threat indicators detected. This is good - it means no suspicious patterns were found in the email headers.</p>'}
+                </div>
+
+                <div class="analysis-section">
+                    <h3><i class="fas fa-network-wired"></i> Network Analysis</h3>
+                    <div class="network-summary">
+                        <div class="network-stat">
+                            <strong>Hop Count:</strong> ${data.network_analysis.hop_count}
+                        </div>
+                        <div class="network-stat">
+                            <strong>Suspicious Hops:</strong> ${data.network_analysis.suspicious_hops.length}
+                        </div>
+                        <div class="network-stat">
+                            <strong>Total Distance:</strong> ${data.network_analysis.routing_path.length > 1 ? 'Multi-hop' : 'Direct'}
+                        </div>
+                    </div>
+                    
+                    <div class="network-timeline">
+                        <h4><i class="fas fa-route"></i> Email Routing Timeline</h4>
+                        <div class="timeline-container">
+                            ${data.network_analysis.routing_path.map((hop, index) => {
+                                const isFirst = index === 0;
+                                const isLast = index === data.network_analysis.routing_path.length - 1;
+                                const hopType = isFirst ? 'sender' : isLast ? 'destination' : 'relay';
+                                const trustLevel = hop.analysis.suspicious ? 'untrusted' : 'trusted';
+                                
+                                return `
+                                    <div class="timeline-hop ${hopType} ${trustLevel}">
+                                        <div class="hop-icon">
+                                            ${isFirst ? '<i class="fas fa-paper-plane"></i>' : 
+                                              isLast ? '<i class="fas fa-inbox"></i>' : 
+                                              '<i class="fas fa-server"></i>'}
+                                        </div>
+                                        <div class="hop-content">
+                                            <div class="hop-header">
+                                                <span class="hop-number">${hop.hop_number}</span>
+                                                <span class="hop-type">${isFirst ? 'Sender' : isLast ? 'Destination' : 'Relay'}</span>
+                                                <span class="trust-badge ${trustLevel}">${trustLevel === 'trusted' ? '✅ Trusted' : '⚠️ Suspicious'}</span>
+                                            </div>
+                                            <div class="hop-details">
+                                                <div class="hop-server">${hop.header}</div>
+                                                ${hop.analysis.suspicious ? `
+                                                    <div class="suspicious-reasons">
+                                                        <strong>⚠️ Suspicious:</strong> ${hop.analysis.reasons.join(', ')}
+                                                    </div>
+                                                ` : ''}
+                                            </div>
+                                        </div>
+                                        ${index < data.network_analysis.routing_path.length - 1 ? '<div class="hop-arrow"><i class="fas fa-arrow-right"></i></div>' : ''}
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="analysis-section">
+                    <h3><i class="fas fa-user-secret"></i> Spoofing Analysis</h3>
+                    <p><strong>Risk Level:</strong> <span class="risk-badge risk-${data.spoofing_analysis.risk_level.toLowerCase()}">${data.spoofing_analysis.risk_level}</span></p>
+                    <p><strong>Spoofing Score:</strong> ${data.spoofing_analysis.spoofing_score}/${data.spoofing_analysis.max_score} (${data.spoofing_analysis.percentage.toFixed(1)}%)</p>
+                    <p>${data.spoofing_analysis.details}</p>
+                    
+                    ${data.spoofing_analysis.indicators.length > 0 ? `
+                        <div class="threat-indicators">
+                            <h4>Spoofing Indicators:</h4>
+                            <ul>
+                                ${data.spoofing_analysis.indicators.map(indicator => `<li>${indicator}</li>`).join('')}
+                            </ul>
+                        </div>
+                    ` : '<p><i class="fas fa-check-circle"></i> No spoofing indicators detected. This is good - it means the email appears to be legitimate.</p>'}
+                </div>
+
+                <div class="analysis-section">
+                    <h3><i class="fas fa-search"></i> Reputation Analysis</h3>
+                    
+                    <!-- Overall Reputation Status -->
+                    <div class="reputation-overview">
+                        <div class="overall-status ${data.reputation_analysis.overall_status.toLowerCase()}">
+                            <h4><i class="fas fa-shield-alt"></i> Overall Status: ${data.reputation_analysis.overall_status}</h4>
+                            <p>${data.reputation_analysis.overall_message}</p>
+                            <div class="overall-score">
+                                <strong>Risk Score:</strong> ${data.reputation_analysis.overall_risk_score.toFixed(1)}%
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Summary Statistics -->
+                    <div class="reputation-summary">
+                        <div class="summary-grid">
+                            <div class="summary-stat">
+                                <strong>Total Items:</strong> ${data.reputation_analysis.summary_stats.total_items}
+                            </div>
+                            <div class="summary-stat critical">
+                                <strong>Critical:</strong> ${data.reputation_analysis.summary_stats.critical_count}
+                            </div>
+                            <div class="summary-stat high">
+                                <strong>High Risk:</strong> ${data.reputation_analysis.summary_stats.high_risk_count}
+                            </div>
+                            <div class="summary-stat medium">
+                                <strong>Medium Risk:</strong> ${data.reputation_analysis.summary_stats.medium_risk_count}
+                            </div>
+                            <div class="summary-stat low">
+                                <strong>Low Risk:</strong> ${data.reputation_analysis.summary_stats.low_risk_count}
+                            </div>
+                            <div class="summary-stat safe">
+                                <strong>Safe:</strong> ${data.reputation_analysis.summary_stats.safe_count}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Recommendations -->
+                    ${data.reputation_analysis.recommendations.length > 0 ? `
+                        <div class="reputation-recommendations">
+                            <h4><i class="fas fa-lightbulb"></i> Recommendations</h4>
+                            <ul>
+                                ${data.reputation_analysis.recommendations.map(rec => `<li>${rec}</li>`).join('')}
+                            </ul>
+                        </div>
+                    ` : ''}
+                    
+                                                            <!-- IP Reputation -->
+                    ${data.reputation_analysis.ip_reputation.length > 0 ? `
+                        <div class="reputation-section">
+                            <h4><i class="fas fa-network-wired"></i> IP Reputation (${data.reputation_analysis.total_ips_checked})</h4>
+                            
+                            ${data.reputation_analysis.critical_ips.length > 0 ? `
+                                <div class="risk-category critical">
+                                    <h5><i class="fas fa-exclamation-triangle"></i> Critical Risk IPs</h5>
+                                    ${data.reputation_analysis.critical_ips.map(ip => `
+                                        <div class="reputation-card critical">
+                                            <div class="reputation-header">
+                                                <strong>IP:</strong> ${ip.ip}
+                                                <span class="risk-badge critical">Critical</span>
+                                            </div>
+                                            <div class="reputation-details">
+                                                <div><strong>Overall Score:</strong> ${ip.overall_score.toFixed(1)}%</div>
+                                                ${ip.detailed_analysis.abuseipdb_analysis.summary ? `<div><strong>AbuseIPDB:</strong> ${ip.detailed_analysis.abuseipdb_analysis.summary}</div>` : ''}
+                                                ${ip.detailed_analysis.virustotal_analysis.summary ? `<div><strong>VirusTotal:</strong> ${ip.detailed_analysis.virustotal_analysis.summary}</div>` : ''}
+                                                ${ip.detailed_analysis.ipqualityscore_analysis.summary ? `<div><strong>IPQualityScore:</strong> ${ip.detailed_analysis.ipqualityscore_analysis.summary}</div>` : ''}
+                                                ${ip.recommendations.length > 0 ? `
+                                                    <div class="recommendations">
+                                                        <strong>Actions:</strong>
+                                                        <ul>
+                                                            ${ip.recommendations.map(rec => `<li>${rec}</li>`).join('')}
+                                                        </ul>
+                                                    </div>
+                                                ` : ''}
+                                            </div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            ` : ''}
+                            
+                            ${data.reputation_analysis.high_risk_ips.length > 0 ? `
+                                <div class="risk-category high">
+                                    <h5><i class="fas fa-exclamation-circle"></i> High Risk IPs</h5>
+                                    ${data.reputation_analysis.high_risk_ips.map(ip => `
+                                        <div class="reputation-card high">
+                                            <div class="reputation-header">
+                                                <strong>IP:</strong> ${ip.ip}
+                                                <span class="risk-badge high">High</span>
+                                            </div>
+                                            <div class="reputation-details">
+                                                <div><strong>Overall Score:</strong> ${ip.overall_score.toFixed(1)}%</div>
+                                                ${ip.detailed_analysis.abuseipdb_analysis.summary ? `<div><strong>AbuseIPDB:</strong> ${ip.detailed_analysis.abuseipdb_analysis.summary}</div>` : ''}
+                                                ${ip.detailed_analysis.virustotal_analysis.summary ? `<div><strong>VirusTotal:</strong> ${ip.detailed_analysis.virustotal_analysis.summary}</div>` : ''}
+                                                ${ip.detailed_analysis.ipqualityscore_analysis.summary ? `<div><strong>IPQualityScore:</strong> ${ip.detailed_analysis.ipqualityscore_analysis.summary}</div>` : ''}
+                                                ${ip.recommendations.length > 0 ? `
+                                                    <div class="recommendations">
+                                                        <strong>Actions:</strong>
+                                                        <ul>
+                                                            ${ip.recommendations.map(rec => `<li>${rec}</li>`).join('')}
+                                                        </ul>
+                                                    </div>
+                                                ` : ''}
+                                            </div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            ` : ''}
+                            
+                            ${data.reputation_analysis.medium_risk_ips.length > 0 ? `
+                                <div class="risk-category medium">
+                                    <h5><i class="fas fa-info-circle"></i> Medium Risk IPs</h5>
+                                    ${data.reputation_analysis.medium_risk_ips.map(ip => `
+                                        <div class="reputation-card medium">
+                                            <div class="reputation-header">
+                                                <strong>IP:</strong> ${ip.ip}
+                                                <span class="risk-badge medium">Medium</span>
+                                            </div>
+                                            <div class="reputation-details">
+                                                <div><strong>Overall Score:</strong> ${ip.overall_score.toFixed(1)}%</div>
+                                                ${ip.detailed_analysis.abuseipdb_analysis.summary ? `<div><strong>AbuseIPDB:</strong> ${ip.detailed_analysis.abuseipdb_analysis.summary}</div>` : ''}
+                                                ${ip.detailed_analysis.virustotal_analysis.summary ? `<div><strong>VirusTotal:</strong> ${ip.detailed_analysis.virustotal_analysis.summary}</div>` : ''}
+                                                ${ip.detailed_analysis.ipqualityscore_analysis.summary ? `<div><strong>IPQualityScore:</strong> ${ip.detailed_analysis.ipqualityscore_analysis.summary}</div>` : ''}
+                                            </div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            ` : ''}
+                            
+                            ${data.reputation_analysis.low_risk_ips.length > 0 ? `
+                                <div class="risk-category low">
+                                    <h5><i class="fas fa-check-circle"></i> Low Risk IPs</h5>
+                                    ${data.reputation_analysis.low_risk_ips.map(ip => `
+                                        <div class="reputation-card low">
+                                            <div class="reputation-header">
+                                                <strong>IP:</strong> ${ip.ip}
+                                                <span class="risk-badge low">Low</span>
+                                            </div>
+                                            <div class="reputation-details">
+                                                <div><strong>Overall Score:</strong> ${ip.overall_score.toFixed(1)}%</div>
+                                            </div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            ` : ''}
+                            
+                            ${data.reputation_analysis.safe_ips.length > 0 ? `
+                                <div class="risk-category safe">
+                                    <h5><i class="fas fa-shield-check"></i> Safe IPs</h5>
+                                    ${data.reputation_analysis.safe_ips.map(ip => `
+                                        <div class="reputation-card safe">
+                                            <div class="reputation-header">
+                                                <strong>IP:</strong> ${ip.ip}
+                                                <span class="risk-badge safe">Safe</span>
+                                            </div>
+                                            <div class="reputation-details">
+                                                <div><strong>Overall Score:</strong> ${ip.overall_score.toFixed(1)}%</div>
+                                            </div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            ` : ''}
+                        </div>
+                    ` : ''}
+                    
+                    <!-- Domain Reputation -->
+                    ${data.reputation_analysis.domain_reputation.length > 0 ? `
+                        <div class="reputation-section">
+                            <h4><i class="fas fa-globe"></i> Domain Reputation (${data.reputation_analysis.total_domains_checked})</h4>
+                            
+                            ${data.reputation_analysis.critical_domains.length > 0 ? `
+                                <div class="risk-category critical">
+                                    <h5><i class="fas fa-exclamation-triangle"></i> Critical Risk Domains</h5>
+                                    ${data.reputation_analysis.critical_domains.map(domain => `
+                                        <div class="reputation-card critical">
+                                            <div class="reputation-header">
+                                                <strong>Domain:</strong> ${domain.domain}
+                                                <span class="risk-badge critical">Critical</span>
+                                            </div>
+                                            <div class="reputation-details">
+                                                <div><strong>Overall Score:</strong> ${domain.overall_score.toFixed(1)}%</div>
+                                                ${domain.detailed_analysis.virustotal_analysis.summary ? `<div><strong>VirusTotal:</strong> ${domain.detailed_analysis.virustotal_analysis.summary}</div>` : ''}
+                                                ${domain.detailed_analysis.ipqualityscore_analysis.summary ? `<div><strong>IPQualityScore:</strong> ${domain.detailed_analysis.ipqualityscore_analysis.summary}</div>` : ''}
+                                                ${domain.detailed_analysis.talos_analysis.summary ? `<div><strong>Talos Intelligence:</strong> ${domain.detailed_analysis.talos_analysis.summary}</div>` : ''}
+                                                ${domain.recommendations.length > 0 ? `
+                                                    <div class="recommendations">
+                                                        <strong>Actions:</strong>
+                                                        <ul>
+                                                            ${domain.recommendations.map(rec => `<li>${rec}</li>`).join('')}
+                                                        </ul>
+                                                    </div>
+                                                ` : ''}
+                                            </div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            ` : ''}
+                            
+                            ${data.reputation_analysis.high_risk_domains.length > 0 ? `
+                                <div class="risk-category high">
+                                    <h5><i class="fas fa-exclamation-circle"></i> High Risk Domains</h5>
+                                    ${data.reputation_analysis.high_risk_domains.map(domain => `
+                                        <div class="reputation-card high">
+                                            <div class="reputation-header">
+                                                <strong>Domain:</strong> ${domain.domain}
+                                                <span class="risk-badge high">High</span>
+                                            </div>
+                                            <div class="reputation-details">
+                                                <div><strong>Overall Score:</strong> ${domain.overall_score.toFixed(1)}%</div>
+                                                ${domain.detailed_analysis.virustotal_analysis.summary ? `<div><strong>VirusTotal:</strong> ${domain.detailed_analysis.virustotal_analysis.summary}</div>` : ''}
+                                                ${domain.detailed_analysis.ipqualityscore_analysis.summary ? `<div><strong>IPQualityScore:</strong> ${domain.detailed_analysis.ipqualityscore_analysis.summary}</div>` : ''}
+                                                ${domain.detailed_analysis.talos_analysis.summary ? `<div><strong>Talos Intelligence:</strong> ${domain.detailed_analysis.talos_analysis.summary}</div>` : ''}
+                                                ${domain.recommendations.length > 0 ? `
+                                                    <div class="recommendations">
+                                                        <strong>Actions:</strong>
+                                                        <ul>
+                                                            ${domain.recommendations.map(rec => `<li>${rec}</li>`).join('')}
+                                                        </ul>
+                                                    </div>
+                                                ` : ''}
+                                            </div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            ` : ''}
+                            
+                            ${data.reputation_analysis.medium_risk_domains.length > 0 ? `
+                                <div class="risk-category medium">
+                                    <h5><i class="fas fa-info-circle"></i> Medium Risk Domains</h5>
+                                    ${data.reputation_analysis.medium_risk_domains.map(domain => `
+                                        <div class="reputation-card medium">
+                                            <div class="reputation-header">
+                                                <strong>Domain:</strong> ${domain.domain}
+                                                <span class="risk-badge medium">Medium</span>
+                                            </div>
+                                            <div class="reputation-details">
+                                                <div><strong>Overall Score:</strong> ${domain.overall_score.toFixed(1)}%</div>
+                                                ${domain.detailed_analysis.virustotal_analysis.summary ? `<div><strong>VirusTotal:</strong> ${domain.detailed_analysis.virustotal_analysis.summary}</div>` : ''}
+                                                ${domain.detailed_analysis.ipqualityscore_analysis.summary ? `<div><strong>IPQualityScore:</strong> ${domain.detailed_analysis.ipqualityscore_analysis.summary}</div>` : ''}
+                                                ${domain.detailed_analysis.talos_analysis.summary ? `<div><strong>Talos Intelligence:</strong> ${domain.detailed_analysis.talos_analysis.summary}</div>` : ''}
+                                            </div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            ` : ''}
+                            
+                            ${data.reputation_analysis.low_risk_domains.length > 0 ? `
+                                <div class="risk-category low">
+                                    <h5><i class="fas fa-check-circle"></i> Low Risk Domains</h5>
+                                    ${data.reputation_analysis.low_risk_domains.map(domain => `
+                                        <div class="reputation-card low">
+                                            <div class="reputation-header">
+                                                <strong>Domain:</strong> ${domain.domain}
+                                                <span class="risk-badge low">Low</span>
+                                            </div>
+                                            <div class="reputation-details">
+                                                <div><strong>Overall Score:</strong> ${domain.overall_score.toFixed(1)}%</div>
+                                                ${domain.detailed_analysis.talos_analysis.summary ? `<div><strong>Talos Intelligence:</strong> ${domain.detailed_analysis.talos_analysis.summary}</div>` : ''}
+                                            </div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            ` : ''}
+                            
+                            ${data.reputation_analysis.safe_domains.length > 0 ? `
+                                <div class="risk-category safe">
+                                    <h5><i class="fas fa-shield-check"></i> Safe Domains</h5>
+                                    ${data.reputation_analysis.safe_domains.map(domain => `
+                                        <div class="reputation-card safe">
+                                            <div class="reputation-header">
+                                                <strong>Domain:</strong> ${domain.domain}
+                                                <span class="risk-badge safe">Safe</span>
+                                            </div>
+                                            <div class="reputation-details">
+                                                <div><strong>Overall Score:</strong> ${domain.overall_score.toFixed(1)}%</div>
+                                                ${domain.detailed_analysis.talos_analysis.summary ? `<div><strong>Talos Intelligence:</strong> ${domain.detailed_analysis.talos_analysis.summary}</div>` : ''}
+                                            </div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            ` : ''}
+                        </div>
+                    ` : ''}
+                    
+                    ${data.reputation_analysis.summary_stats.total_items === 0 ? 
+                        '<p class="info-message"><i class="fas fa-info-circle"></i> No public IPs or domains found for reputation analysis. This is normal for internal or local email headers.</p>' : 
+                        data.reputation_analysis.summary_stats.critical_count === 0 && data.reputation_analysis.summary_stats.high_risk_count === 0 ? 
+                        '<p class="success-message"><i class="fas fa-check-circle"></i> No critical or high-risk items detected. All checked items appear to be safe.</p>' : 
+                        '<p class="warning-message"><i class="fas fa-exclamation-triangle"></i> Critical or high-risk items detected. Review carefully.</p>'
+                    }
+                </div>
+
+                <div class="analysis-section">
+                    <h3><i class="fas fa-globe"></i> Domain Analysis</h3>
+                    <p><strong>Domains Found:</strong> ${data.domain_analysis.domains_found}</p>
+                    
+                    ${data.domain_analysis.domain_analysis.map(domain => `
+                        <div class="location-card ${domain.valid ? 'valid-domain' : 'invalid-domain'}">
+                            <strong>Domain:</strong> ${domain.domain}<br>
+                            <strong>Status:</strong> <span class="domain-status ${domain.valid ? 'valid' : 'invalid'}">${domain.valid ? '✅ Valid' : '❌ Invalid'}</span><br>
+                            <strong>Analysis:</strong> ${domain.analysis}
+                        </div>
+                    `).join('')}
+                </div>
+
+                <div class="recommendations">
+                    <h4><i class="fas fa-lightbulb"></i> Recommendations</h4>
+                    ${data.summary.recommendations.length > 0 ? `
+                        <ul>
+                            ${data.summary.recommendations.map(rec => `<li>${rec}</li>`).join('')}
+                        </ul>
+                    ` : '<p><i class="fas fa-check-circle"></i> No specific recommendations at this time. The email headers appear to be properly configured.</p>'}
+                </div>
+            `;
+
+            // Show results
+            document.querySelector('.loading').style.display = 'none';
+            resultsSection.style.display = 'block';
+        }
+
+        // File Upload Functions
+        function switchTab(tab) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.style.display = 'none';
+            });
+            
+            // Remove active class from all tab buttons
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // Show selected tab content
+            document.getElementById(tab + 'Tab').style.display = 'block';
+            
+            // Add active class to selected tab button
+            event.target.classList.add('active');
+        }
+
+        // File upload functionality
+        const fileUploadArea = document.getElementById('fileUploadArea');
+        const emlFileInput = document.getElementById('emlFile');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const fileInfo = document.getElementById('fileInfo');
+        const fileName = document.getElementById('fileName');
+        const uploadPlaceholder = document.querySelector('.upload-placeholder');
+
+        // Click to select file
+        fileUploadArea.addEventListener('click', () => {
+            emlFileInput.click();
+        });
+
+        // Handle file selection
+        emlFileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                if (file.name.toLowerCase().endsWith('.eml')) {
+                    fileName.textContent = file.name;
+                    uploadPlaceholder.style.display = 'none';
+                    fileInfo.style.display = 'flex';
+                    uploadBtn.disabled = false;
+                } else {
+                    alert('Please select a valid .eml file');
+                    removeFile();
+                }
+            }
+        });
+
+        // Drag and drop functionality
+        fileUploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            fileUploadArea.classList.add('dragover');
+        });
+
+        fileUploadArea.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            fileUploadArea.classList.remove('dragover');
+        });
+
+        fileUploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            fileUploadArea.classList.remove('dragover');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                const file = files[0];
+                if (file.name.toLowerCase().endsWith('.eml')) {
+                    emlFileInput.files = files;
+                    fileName.textContent = file.name;
+                    uploadPlaceholder.style.display = 'none';
+                    fileInfo.style.display = 'flex';
+                    uploadBtn.disabled = false;
+                } else {
+                    alert('Please drop a valid .eml file');
+                }
+            }
+        });
+
+        // Remove file
+        function removeFile() {
+            emlFileInput.value = '';
+            uploadPlaceholder.style.display = 'block';
+            fileInfo.style.display = 'none';
+            uploadBtn.disabled = true;
+        }
+
+        // Handle file upload form submission
+        document.getElementById('uploadForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const file = emlFileInput.files[0];
+            if (!file) {
+                alert('Please select a .eml file to analyse.');
+                return;
+            }
+
+            // Show loading
+            document.querySelector('.loading').style.display = 'block';
+            document.getElementById('resultsSection').style.display = 'none';
+
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                displayResults(data);
+            } catch (error) {
+                document.querySelector('.loading').style.display = 'none';
+                document.getElementById('resultsSection').innerHTML = `
+                    <div class="error">
+                        <i class="fas fa-exclamation-triangle"></i> Error: ${error.message}
+                    </div>
+                `;
+                document.getElementById('resultsSection').style.display = 'block';
+            }
+        });
+
+        // PDF Download functionality
+        let currentHeaders = '';
+        let currentResults = null;
+
+        // Store headers and results when analysis is performed
+        function storeAnalysisData(headers, results) {
+            currentHeaders = headers;
+            currentResults = results;
+            
+            // Show PDF download buttons
+            document.getElementById('downloadPdfBtn').style.display = 'inline-flex';
+            document.getElementById('downloadPdfBtnFile').style.display = 'inline-flex';
+        }
+
+        // PDF download for text input
+        document.getElementById('downloadPdfBtn').addEventListener('click', async function() {
+            if (!currentHeaders) {
+                alert('Please analyse headers first before downloading PDF.');
+                return;
+            }
+
+            try {
+                const response = await fetch('/download-pdf', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `headers=${encodeURIComponent(currentHeaders)}`
+                });
+
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `email_header_analysis_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.pdf`;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                } else {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'PDF generation failed');
+                }
+            } catch (error) {
+                alert(`Error downloading PDF: ${error.message}`);
+            }
+        });
+
+        // PDF download for file upload
+        document.getElementById('downloadPdfBtnFile').addEventListener('click', async function() {
+            if (!currentHeaders) {
+                alert('Please analyse headers first before downloading PDF.');
+                return;
+            }
+
+            try {
+                const response = await fetch('/download-pdf', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `headers=${encodeURIComponent(currentHeaders)}`
+                });
+
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `email_header_analysis_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.pdf`;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                } else {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'PDF generation failed');
+                }
+            } catch (error) {
+                alert(`Error downloading PDF: ${error.message}`);
+            }
+        });
+
+        // Update the displayResults function to store data
+        const originalDisplayResults = displayResults;
+        displayResults = function(data) {
+            // Store the current analysis data
+            const headers = document.getElementById('headers').value || '';
+            storeAnalysisData(headers, data);
+            
+            // Call the original displayResults function
+            originalDisplayResults(data);
+        };
+    </script>
+</body>
+</html> 
